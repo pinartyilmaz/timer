@@ -25,11 +25,11 @@ class TimerRequest(BaseModel):
 
 class TimerResponse(BaseModel):
     timer_id: str
-    seconds_left: int
+    seconds_left: float
 
 
 class TimerStatusResponse(BaseModel):
-    seconds_left: int
+    seconds_left: float
 
 
 @app.post("/timer", response_model=TimerResponse)
@@ -39,9 +39,9 @@ def set_timer(timer_request: TimerRequest):
     timer_id = str(uuid.uuid4())
     end_time = datetime.now() + timedelta(seconds=total_seconds)
     redis_client.set(timer_id, end_time.isoformat())
-
-    timer_task.send_with_options(args=(timer_id, str(timer_request.url)))
-
+    # send to dramatiq queue with a delay in miliseconds.
+    timer_task.send_with_options(args=(timer_id, str(timer_request.url)), delay=int(total_seconds)*1000)
+    print(f"total_seconds{total_seconds}")
     return TimerResponse(timer_id=timer_id, seconds_left=total_seconds)
 
 
@@ -53,9 +53,7 @@ def get_timer(timer_id: str):
         remaining_time = (end_time-datetime.now()).total_seconds()
         if remaining_time < 0:
             remaining_time = 0
-            return TimerStatusResponse(seconds_left=int(remaining_time))
-
-    return TimerStatusResponse(seconds_left=0)
+        return TimerStatusResponse(seconds_left=int(remaining_time))
 
 
 if __name__ == "__main__":
