@@ -34,6 +34,11 @@ class TimerStatusResponse(BaseModel):
 
 @app.post("/timer", response_model=TimerResponse)
 def set_timer(timer_request: TimerRequest):
+    """
+    This endpoint sets the timer and calculates how many seconds after the dramatiq task should be fired.
+    :param timer_request:
+    :return: TimerResponse
+    """
     # calculate in seconds
     total_seconds = timer_request.hours * 3600 + timer_request.minutes * 60 + timer_request.seconds
     timer_id = str(uuid.uuid4())
@@ -41,12 +46,16 @@ def set_timer(timer_request: TimerRequest):
     redis_client.set(timer_id, end_time.isoformat())
     # send to dramatiq queue with a delay in miliseconds.
     timer_task.send_with_options(args=(timer_id, str(timer_request.url)), delay=int(total_seconds)*1000)
-    print(f"total_seconds{total_seconds}")
     return TimerResponse(timer_id=timer_id, seconds_left=total_seconds)
 
 
 @app.get("/timer/{timer_id}", response_model=TimerStatusResponse)
 def get_timer(timer_id: str):
+    """
+    This endpoint returns how many seconds left until the timer to expire.
+    :param timer_id:
+    :return TimerStatusResponse
+    """
     end_time_value=redis_client.get(timer_id)
     if end_time_value:
         end_time=datetime.fromisoformat(end_time_value.decode())

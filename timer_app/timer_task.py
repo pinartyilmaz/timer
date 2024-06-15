@@ -17,6 +17,12 @@ redis_client = Redis(host=redis_host, port=redis_port, db=0)
 
 @dramatiq.actor
 def timer_task(timer_id: str, url: str):
+    """
+    A dramatiq task to call an endpoint when fired. Only works if the timer hasn't expired by checking cache.
+    :param timer_id:
+    :param url:
+    :return: None
+    """
     end_time_str = redis_client.get(timer_id)
     if end_time_str:
         response=requests.post(url, json={"timer_id": timer_id, "status": "expired"})
